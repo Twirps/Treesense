@@ -2,24 +2,30 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { UploadZone } from "@/components/UploadZone";
 import { Leaf, Trees } from "lucide-react";
+import { predictImage, loadModel } from "../lib/tfmodel";
 
 const Upload = () => {
   const navigate = useNavigate();
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
 
-  const handleImageSelect = (file: File) => {
+  const handleImageSelect = async (file: File) => {
     setSelectedImage(file);
-    // Store the image in sessionStorage for the results page
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      sessionStorage.setItem("uploadedImage", reader.result as string);
-      // Simulate AI processing and navigate to results
-      setTimeout(() => {
-        navigate("/results");
-      }, 500);
+  
+    // Create an image element for prediction
+    const img = new Image();
+    img.src = URL.createObjectURL(file);
+  
+    img.onload = async () => {
+      await loadModel(); // make sure model is loaded
+      const prediction = await predictImage(img);
+  
+      // Store prediction in sessionStorage (or state)
+      sessionStorage.setItem("prediction", JSON.stringify(prediction));
+  
+      // Navigate to results page
+      navigate("/results");
     };
-    reader.readAsDataURL(file);
-  };
+  };  
 
   return (
     <div className="min-h-screen">
