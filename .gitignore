@@ -20,5 +20,16 @@ dist-ssr
 *.suo
 *.ntvs*
 *.njsproj
+*.njsproj.user
 *.sln
 *.sw?
+
+# Dataset (images — DO NOT TRACK)
+dataset/
+
+# Model files
+*.h5
+*.tflite
+
+# Ignore Python environment
+.venv/
