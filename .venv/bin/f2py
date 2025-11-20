@@ -1,4 +1,4 @@
-#!/Users/atharvatijare/Desktop/Atharva/College/Charlotte/Personal_Projects/Projects/Treesense/.venv/bin/python3
+#!/Users/atharvatijare/Desktop/Atharva/College/Charlotte/Personal_Projects/Projects/Treesense/.venv/bin/python3.11
 import sys
 from numpy.f2py.f2py2e import main
 if __name__ == '__main__':
