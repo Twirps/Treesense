@@ -1,4 +1,4 @@
-#!/Users/atharvatijare/Desktop/Atharva/College/Charlotte/Personal_Projects/Projects/Treesense/.venv/bin/python3.11
+#!/Users/atharvatijare/Desktop/Atharva/College/Charlotte/Personal_Projects/Projects/Treesense/.venv/bin/python3.10
 import sys
 from fontTools.ttx import main
 if __name__ == '__main__':

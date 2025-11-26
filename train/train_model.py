@@ -97,7 +97,7 @@ model.summary()
 # Callbacks
 # -----------------------------
 checkpoint = ModelCheckpoint(
-    "model.h5",
+    "model.keras",
     monitor="val_accuracy",
     save_best_only=True,
     verbose=1
@@ -132,4 +132,4 @@ plt.legend()
 plt.savefig("history_plot.png")
 plt.close()
 
-print("\nTraining complete! Model saved as model.h5")
+print("\nTraining complete! Model saved as model.keras")
