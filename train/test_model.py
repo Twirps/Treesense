@@ -9,7 +9,7 @@ model = tf.keras.models.load_model("model.keras")
 img_path = "../train/test_images/test_image.jpg"
 
 # ---- Preprocess image ----
-img = image.load_img(img_path, target_size=(224, 224))
+img = image.load_img(img_path, target_size=(160, 160))
 img_array = image.img_to_array(img)
 img_array = tf.expand_dims(img_array, 0)  # Add batch dimension
 img_array = img_array / 255.0  # Normalize if your training generator normalized
