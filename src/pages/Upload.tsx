@@ -1,29 +1,127 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { UploadZone } from "@/components/UploadZone";
-import { Leaf, Trees } from "lucide-react";
-import { predictImage, loadModel } from "../lib/tfmodel";
+import { Leaf, Trees, Loader2 } from "lucide-react";
+import { predictImage as predictImageAPI, checkApiHealth } from "../lib/api";
+import { Progress } from "@/components/ui/progress";
 
 const Upload = () => {
   const navigate = useNavigate();
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [processingStage, setProcessingStage] = useState<string>("");
+  const [progress, setProgress] = useState(0);
+
+  useEffect(() => {
+    console.log('🌳 [TreeSense] Application initialized');
+    console.log('📱 [TreeSense] Ready to process tree leaf images');
+    console.log('💡 [TreeSense] Open browser console to see processing details');
+  }, []);
 
   const handleImageSelect = async (file: File) => {
+    // Prevent multiple uploads
+    if (isProcessing) {
+      console.warn("⚠️  [TreeSense] Already processing an image. Please wait...");
+      return;
+    }
+
+    console.log("🌳 [TreeSense] Image selected:", file.name, `(${(file.size / 1024 / 1024).toFixed(2)} MB)`);
     setSelectedImage(file);
+    setIsProcessing(true);
+    setProgress(10);
+    setProcessingStage("Loading image...");
   
     // Create an image element for prediction
     const img = new Image();
-    img.src = URL.createObjectURL(file);
+    const imageUrl = URL.createObjectURL(file);
+    img.src = imageUrl;
   
     img.onload = async () => {
-      await loadModel(); // make sure model is loaded
-      const prediction = await predictImage(img);
+      try {
+        console.log("✅ [TreeSense] Image loaded successfully");
+        setProgress(30);
+        setProcessingStage("Connecting to API server...");
+        
+        // Check if API is available
+        console.log("🔍 [TreeSense] Checking API server connection...");
+        const apiAvailable = await checkApiHealth();
+        if (!apiAvailable) {
+          console.error("❌ [TreeSense] API server check failed");
+          console.error("   Possible causes:");
+          console.error("   1. Server not running - run: cd server && .\\start_server.ps1");
+          console.error("   2. Ad blocker blocking localhost:5000 - disable for localhost");
+          console.error("   3. Firewall blocking port 5000");
+          throw new Error("Cannot connect to API server. Make sure the server is running (see SERVER_SETUP.md)");
+        }
+        
+        console.log("✅ [TreeSense] API server is available");
+        setProgress(40);
+        setProcessingStage("Sending image to server for analysis...");
+        console.log("🔍 [TreeSense] Running prediction via API...");
+        console.log("   Image dimensions:", img.width, "x", img.height);
+        
+        // Update progress during API call
+        const progressInterval = setInterval(() => {
+          setProgress(prev => {
+            if (prev < 80) return prev + 2;
+            return prev;
+          });
+        }, 200);
+        
+        const startTime = performance.now();
+        let prediction;
+        try {
+          // Call API with the file
+          prediction = await predictImageAPI(file);
+          clearInterval(progressInterval);
+          setProgress(85);
+          setProcessingStage("Processing results...");
+        } catch (error) {
+          clearInterval(progressInterval);
+          throw error;
+        }
+        const endTime = performance.now();
+        const processingTime = ((endTime - startTime) / 1000).toFixed(2);
+        
+        console.log("✅ [TreeSense] Prediction completed in", processingTime, "seconds");
+        console.log("📊 [TreeSense] Top prediction:", prediction.className, `(${(prediction.confidence * 100).toFixed(2)}% confidence)`);
+        console.log("📈 [TreeSense] Top 3 predictions:");
+        prediction.top3.forEach((pred, idx) => {
+          console.log(`   ${idx + 1}. ${pred.className}: ${(pred.confidence * 100).toFixed(2)}%`);
+        });
   
-      // Store prediction in sessionStorage (or state)
-      sessionStorage.setItem("prediction", JSON.stringify(prediction));
-  
-      // Navigate to results page
-      navigate("/results");
+        setProgress(90);
+        setProcessingStage("Preparing results...");
+        
+        // Store prediction, original image URL, and preprocessed image URL in sessionStorage
+        sessionStorage.setItem("prediction", JSON.stringify(prediction));
+        sessionStorage.setItem("imageUrl", imageUrl);
+        if (prediction.preprocessedImageUrl) {
+          sessionStorage.setItem("preprocessedImageUrl", prediction.preprocessedImageUrl);
+        }
+        
+        console.log("💾 [TreeSense] Results stored in sessionStorage");
+        setProgress(100);
+        setProcessingStage("Analysis complete!");
+        
+        // Small delay to show completion before navigating
+        setTimeout(() => {
+          console.log("🚀 [TreeSense] Navigating to results page...");
+          navigate("/results");
+        }, 500);
+      } catch (error) {
+        console.error("❌ [TreeSense] Error during processing:", error);
+        setProcessingStage("Error occurred. Please try again.");
+        setIsProcessing(false);
+        setProgress(0);
+      }
+    };
+
+    img.onerror = () => {
+      console.error("❌ [TreeSense] Failed to load image");
+      setProcessingStage("Failed to load image. Please try again.");
+      setIsProcessing(false);
+      setProgress(0);
     };
   };  
 
@@ -130,9 +228,50 @@ const Upload = () => {
           </p>
         </div>
 
-        <UploadZone onImageSelect={handleImageSelect} />
+        <UploadZone onImageSelect={handleImageSelect} disabled={isProcessing} />
 
       </div>
+
+      {/* Processing Overlay */}
+      {isProcessing && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center">
+          <div className="bg-card rounded-2xl shadow-2xl border-2 border-primary p-8 max-w-md w-full mx-4">
+            <div className="flex flex-col items-center gap-6">
+              {/* Spinner */}
+              <div className="relative">
+                <Loader2 className="w-16 h-16 text-primary animate-spin" />
+                <div className="absolute inset-0 rounded-full border-4 border-primary/20" />
+              </div>
+              
+              {/* Status Text */}
+              <div className="text-center space-y-2">
+                <h3 className="text-2xl font-bold text-foreground">
+                  Processing Image
+                </h3>
+                <p className="text-muted-foreground">
+                  {processingStage}
+                </p>
+              </div>
+
+              {/* Progress Bar */}
+              <div className="w-full space-y-3">
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-muted-foreground">Progress</span>
+                    <span className="font-semibold text-foreground">{progress}%</span>
+                  </div>
+                  <Progress value={progress} className="h-3" />
+                </div>
+              </div>
+
+              {/* Info */}
+              <p className="text-xs text-muted-foreground text-center">
+                Please wait while we analyze your tree image...
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

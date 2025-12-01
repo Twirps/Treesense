@@ -4,9 +4,10 @@ import { Button } from "@/components/ui/button";
 
 interface UploadZoneProps {
   onImageSelect: (file: File) => void;
+  disabled?: boolean;
 }
 
-export const UploadZone = ({ onImageSelect }: UploadZoneProps) => {
+export const UploadZone = ({ onImageSelect, disabled = false }: UploadZoneProps) => {
   const [isDragging, setIsDragging] = useState(false);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
@@ -24,37 +25,55 @@ export const UploadZone = ({ onImageSelect }: UploadZoneProps) => {
       e.preventDefault();
       setIsDragging(false);
       
+      if (disabled) {
+        console.warn('⚠️  [UploadZone] Upload disabled - processing in progress');
+        return;
+      }
+      
       const files = Array.from(e.dataTransfer.files);
       const imageFile = files.find((file) => file.type.startsWith("image/"));
       
       if (imageFile) {
+        console.log('📁 [UploadZone] File dropped:', imageFile.name);
         onImageSelect(imageFile);
+      } else {
+        console.warn('⚠️  [UploadZone] No image file found in dropped files');
       }
     },
-    [onImageSelect]
+    [onImageSelect, disabled]
   );
 
   const handleFileInput = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
+      if (disabled) {
+        console.warn('⚠️  [UploadZone] Upload disabled - processing in progress');
+        e.target.value = ''; // Reset input
+        return;
+      }
+      
       const file = e.target.files?.[0];
       if (file) {
+        console.log('📁 [UploadZone] File selected via file input:', file.name);
         onImageSelect(file);
+        e.target.value = ''; // Reset input after selection
       }
     },
-    [onImageSelect]
+    [onImageSelect, disabled]
   );
 
   return (
     <div
-      onDragOver={handleDragOver}
-      onDragLeave={handleDragLeave}
-      onDrop={handleDrop}
+      onDragOver={disabled ? undefined : handleDragOver}
+      onDragLeave={disabled ? undefined : handleDragLeave}
+      onDrop={disabled ? undefined : handleDrop}
       className={`
         relative rounded-3xl p-16 text-center
         bg-white/40 backdrop-blur-xl border-2
         transition-all duration-500 ease-out
         ${
-          isDragging
+          disabled
+            ? "opacity-50 cursor-not-allowed border-muted"
+            : isDragging
             ? "border-primary bg-primary/10 scale-[1.01] shadow-[0_0_60px_hsl(145,70%,50%,0.4)]"
             : "border-primary/30 hover:border-primary/50 hover:bg-white/50 hover:scale-[1.005] shadow-xl hover:shadow-2xl"
         }
@@ -76,10 +95,16 @@ export const UploadZone = ({ onImageSelect }: UploadZoneProps) => {
         
         <div className="space-y-3">
           <h3 className="text-2xl font-bold text-foreground tracking-tight">
-            {isDragging ? "Drop your image here" : "Upload a tree image"}
+            {disabled 
+              ? "Processing image..." 
+              : isDragging 
+              ? "Drop your image here" 
+              : "Upload a tree image"}
           </h3>
           <p className="text-base text-muted-foreground max-w-md mx-auto leading-relaxed">
-            Take a photo of a tree's leaves, bark, or overall shape to identify the species
+            {disabled 
+              ? "Please wait while we analyze your image. You can upload another image once processing is complete."
+              : "Take a photo of a tree's leaves, bark, or overall shape to identify the species"}
           </p>
         </div>
 
@@ -87,8 +112,9 @@ export const UploadZone = ({ onImageSelect }: UploadZoneProps) => {
           <Button
             variant="default"
             size="lg"
-            onClick={() => document.getElementById("file-input")?.click()}
-            className="bg-gradient-to-br from-primary to-accent hover:from-primary/90 hover:to-accent/90 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
+            onClick={() => !disabled && document.getElementById("file-input")?.click()}
+            disabled={disabled}
+            className="bg-gradient-to-br from-primary to-accent hover:from-primary/90 hover:to-accent/90 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
           >
             <Upload className="w-5 h-5" />
             Choose File
@@ -97,8 +123,9 @@ export const UploadZone = ({ onImageSelect }: UploadZoneProps) => {
           <Button
             variant="outline"
             size="lg"
-            onClick={() => document.getElementById("camera-input")?.click()}
-            className="border-2 border-primary bg-white/60 backdrop-blur-sm hover:bg-primary hover:text-white shadow-md hover:shadow-lg transition-all duration-300"
+            onClick={() => !disabled && document.getElementById("camera-input")?.click()}
+            disabled={disabled}
+            className="border-2 border-primary bg-white/60 backdrop-blur-sm hover:bg-primary hover:text-white shadow-md hover:shadow-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Camera className="w-5 h-5" />
             Take Photo
@@ -110,6 +137,7 @@ export const UploadZone = ({ onImageSelect }: UploadZoneProps) => {
           type="file"
           accept="image/*"
           onChange={handleFileInput}
+          disabled={disabled}
           className="hidden"
         />
         
@@ -119,6 +147,7 @@ export const UploadZone = ({ onImageSelect }: UploadZoneProps) => {
           accept="image/*"
           capture="environment"
           onChange={handleFileInput}
+          disabled={disabled}
           className="hidden"
         />
       </div>
